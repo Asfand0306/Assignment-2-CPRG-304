@@ -1,0 +1,254 @@
+package implementations;
+
+import utilities.ListADT;
+import utilities.Iterator;
+import java.util.NoSuchElementException;
+
+public class MyDLL<E> implements ListADT<E> {
+
+    private static class Node<T> {
+        T data;
+        Node<T> prev;
+        Node<T> next;
+
+        Node(T data) {
+            this.data = data;
+            this.prev = null;
+            this.next = null;
+        }
+    }
+
+    private Node<E> head;
+    private Node<E> tail;
+    private int size;
+
+    public MyDLL() {
+        head = null;
+        tail = null;
+        size = 0;
+    }
+
+    @Override
+    public int size() {
+        return size;
+    }
+
+    @Override
+    public void clear() {
+        head = null;
+        tail = null;
+        size = 0;
+    }
+
+    @Override
+    public boolean add(int index, E toAdd) throws NullPointerException, IndexOutOfBoundsException {
+        if (toAdd == null) throw new NullPointerException("Null elements not allowed");
+        if (index < 0 || index > size) throw new IndexOutOfBoundsException("Invalid index: " + index);
+
+        Node<E> newNode = new Node<>(toAdd);
+
+        if (size == 0) {  // Empty list
+            head = tail = newNode;
+        } else if (index == 0) {  // Insert at head
+            newNode.next = head;
+            head.prev = newNode;
+            head = newNode;
+        } else if (index == size) {  // Insert at tail
+            tail.next = newNode;
+            newNode.prev = tail;
+            tail = newNode;
+        } else {  // Insert in middle
+            Node<E> current = getNode(index);
+            newNode.prev = current.prev;
+            newNode.next = current;
+            current.prev.next = newNode;
+            current.prev = newNode;
+        }
+        size++;
+        return true;
+    }
+
+    @Override
+    public boolean add(E toAdd) throws NullPointerException {
+        return add(size, toAdd);
+    }
+
+    @Override
+    public boolean addAll(ListADT<? extends E> toAdd) throws NullPointerException {
+        if (toAdd == null) throw new NullPointerException("Source list cannot be null");
+        
+        Iterator<? extends E> iterator = toAdd.iterator();
+        while (iterator.hasNext()) {
+            add(iterator.next());
+        }
+        return true;
+    }
+
+    @Override
+    public E get(int index) throws IndexOutOfBoundsException {
+        return getNode(index).data;
+    }
+
+    @Override
+    public E remove(int index) throws IndexOutOfBoundsException {
+        if (index < 0 || index >= size) throw new IndexOutOfBoundsException("Invalid index: " + index);
+        
+        Node<E> toRemove = getNode(index);
+        return unlinkNode(toRemove);
+    }
+
+    @Override
+    public E remove(E toRemove) throws NullPointerException {
+        if (toRemove == null) throw new NullPointerException("Cannot remove null element");
+        
+        Node<E> current = head;
+        while (current != null) {
+            if (toRemove.equals(current.data)) {
+                return unlinkNode(current);
+            }
+            current = current.next;
+        }
+        return null;
+    }
+
+    @Override
+    public E set(int index, E toChange) throws NullPointerException, IndexOutOfBoundsException {
+        if (toChange == null) throw new NullPointerException("Cannot set null element");
+        Node<E> node = getNode(index);
+        E oldData = node.data;
+        node.data = toChange;
+        return oldData;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    @Override
+    public boolean contains(E toFind) throws NullPointerException {
+        if (toFind == null) throw new NullPointerException("Cannot search for null element");
+        
+        Node<E> current = head;
+        while (current != null) {
+            if (toFind.equals(current.data)) {
+                return true;
+            }
+            current = current.next;
+        }
+        return false;
+    }
+
+    @Override
+    public E[] toArray(E[] holder) throws NullPointerException {
+        if (holder == null) throw new NullPointerException("Array cannot be null");
+        
+        if (holder.length < size) {
+            holder = (E[]) java.lang.reflect.Array.newInstance(
+                holder.getClass().getComponentType(), size
+            );
+        }
+
+        int i = 0;
+        Node<E> current = head;
+        while (current != null) {
+            holder[i++] = current.data;
+            current = current.next;
+        }
+
+        if (holder.length > size) {
+            holder[size] = null;
+        }
+        return holder;
+    }
+
+    @Override
+    public Object[] toArray() {
+        Object[] array = new Object[size];
+        int i = 0;
+        for (Node<E> current = head; current != null; current = current.next) {
+            array[i++] = current.data;
+        }
+        return array;
+    }
+
+    @Override
+    public Iterator<E> iterator() {
+        return new DLLIterator();
+    }
+
+    @Override
+    public boolean equals(ListADT<?> that) {
+        if (that == null) return false;
+        if (this.size() != that.size()) return false;
+
+        Iterator<?> thisIter = this.iterator();
+        Iterator<?> thatIter = that.iterator();
+
+        while (thisIter.hasNext()) {
+            if (!thisIter.next().equals(thatIter.next())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Node<E> getNode(int index) {
+        if (index < 0 || index >= size) throw new IndexOutOfBoundsException();
+
+        Node<E> current;
+        if (index < size / 2) {  // Search from front
+            current = head;
+            for (int i = 0; i < index; i++) {
+                current = current.next;
+            }
+        } else {  // Search from back
+            current = tail;
+            for (int i = size - 1; i > index; i--) {
+                current = current.prev;
+            }
+        }
+        return current;
+    }
+
+    private E unlinkNode(Node<E> node) {
+        final E element = node.data;
+        final Node<E> prev = node.prev;
+        final Node<E> next = node.next;
+
+        if (prev == null) {
+            head = next;
+        } else {
+            prev.next = next;
+        }
+
+        if (next == null) {
+            tail = prev;
+        } else {
+            next.prev = prev;
+        }
+
+        node.data = null;
+        node.prev = node.next = null;
+        size--;
+        return element;
+    }
+
+    private class DLLIterator implements Iterator<E> {
+        private Node<E> current = head;
+        private Node<E> lastReturned = null;
+
+        @Override
+        public boolean hasNext() {
+            return current != null;
+        }
+
+        @Override
+        public E next() throws NoSuchElementException {
+            if (!hasNext()) throw new NoSuchElementException();
+            lastReturned = current;
+            current = current.next;
+            return lastReturned.data;
+        }
+    }
+}

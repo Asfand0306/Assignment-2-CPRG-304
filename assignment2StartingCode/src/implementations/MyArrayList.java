@@ -1,0 +1,210 @@
+package implementations;
+
+import utilities.ListADT;
+import utilities.Iterator;
+import java.util.Arrays;
+import java.util.NoSuchElementException;
+
+public class MyArrayList<E> implements ListADT<E> {
+
+    private static final int DEFAULT_CAPACITY = 10;
+    private Object[] array;
+    private int size;
+
+    public MyArrayList() {
+        array = new Object[DEFAULT_CAPACITY];
+        size = 0;
+    }
+
+    @Override
+    public int size() {
+        return size;
+    }
+
+    @Override
+    public void clear() {
+        array = new Object[DEFAULT_CAPACITY];
+        size = 0;
+    }
+
+    @Override
+    public boolean add(int index, E toAdd) throws NullPointerException, IndexOutOfBoundsException {
+        if (toAdd == null) {
+            throw new NullPointerException("Cannot add null element");
+        }
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException("Invalid index: " + index);
+        }
+
+        ensureCapacity(size + 1);
+        System.arraycopy(array, index, array, index + 1, size - index);
+        array[index] = toAdd;
+        size++;
+        return true;
+    }
+
+    @Override
+    public boolean add(E toAdd) throws NullPointerException {
+        if (toAdd == null) {
+            throw new NullPointerException("Cannot add null element");
+        }
+        ensureCapacity(size + 1);
+        array[size++] = toAdd;
+        return true;
+    }
+
+    @Override
+    public boolean addAll(ListADT<? extends E> toAdd) throws NullPointerException {
+        if (toAdd == null) {
+            throw new NullPointerException("Source list cannot be null");
+        }
+
+        Iterator<? extends E> it = toAdd.iterator();
+        while (it.hasNext()) {
+            add(it.next());
+        }
+        return true;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public E get(int index) throws IndexOutOfBoundsException {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+        return (E) array[index];
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public E remove(int index) throws IndexOutOfBoundsException {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        E removedElement = (E) array[index];
+        int numShift = size - index - 1;
+        if (numShift > 0) {
+            System.arraycopy(array, index + 1, array, index, numShift);
+        }
+        array[--size] = null;
+        return removedElement;
+    }
+
+    @Override
+    public E remove(E toRemove) throws NullPointerException {
+        if (toRemove == null) {
+            throw new NullPointerException("Cannot remove null element");
+        }
+
+        for (int i = 0; i < size; i++) {
+            if (toRemove.equals(array[i])) {
+                return remove(i);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public E set(int index, E toChange) throws NullPointerException, IndexOutOfBoundsException {
+        if (toChange == null) {
+            throw new NullPointerException("Cannot set null element");
+        }
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        E oldValue = (E) array[index];
+        array[index] = toChange;
+        return oldValue;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    @Override
+    public boolean contains(E toFind) throws NullPointerException {
+        if (toFind == null) {
+            throw new NullPointerException("Cannot search for null element");
+        }
+
+        for (int i = 0; i < size; i++) {
+            if (toFind.equals(array[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public E[] toArray(E[] holder) throws NullPointerException {
+        if (holder == null) {
+            throw new NullPointerException("Array cannot be null");
+        }
+
+        if (holder.length < size) {
+            return Arrays.copyOf(array, size, (Class<? extends E[]>) holder.getClass());
+        }
+
+        System.arraycopy(array, 0, holder, 0, size);
+        if (holder.length > size) {
+            holder[size] = null;
+        }
+        return holder;
+    }
+
+    @Override
+    public Object[] toArray() {
+        return Arrays.copyOf(array, size);
+    }
+
+    @Override
+    public Iterator<E> iterator() {
+        return new ArrayListIterator();
+    }
+
+    // Remove @Override annotation here to fix the error
+    public boolean equals(ListADT<?> that) {
+        if (that == null) return false;
+        if (this.size() != that.size()) return false;
+
+        Iterator<?> thisIt = this.iterator();
+        Iterator<?> thatIt = that.iterator();
+
+        while (thisIt.hasNext()) {
+            if (!thisIt.next().equals(thatIt.next())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void ensureCapacity(int minCapacity) {
+        if (minCapacity > array.length) {
+            int newCapacity = Math.max(array.length * 2, minCapacity);
+            array = Arrays.copyOf(array, newCapacity);
+        }
+    }
+
+    private class ArrayListIterator implements Iterator<E> {
+        private int current = 0;
+
+        @Override
+        public boolean hasNext() {
+            return current < size;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public E next() throws NoSuchElementException {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return (E) array[current++];
+        }
+    }
+}

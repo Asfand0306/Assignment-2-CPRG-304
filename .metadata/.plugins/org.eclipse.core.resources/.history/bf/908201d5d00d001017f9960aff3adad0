@@ -1,0 +1,144 @@
+package implementations;
+
+import utilities.StackADT;
+import utilities.Iterator;
+import exceptions.EmptyStackException;
+import java.util.NoSuchElementException;
+
+public class MyStack<E> implements StackADT<E> {
+
+    private MyArrayList<E> list;
+
+    public MyStack() {
+        list = new MyArrayList<>();
+    }
+
+    @Override
+    public void push(E toAdd) throws NullPointerException {
+        if (toAdd == null) {
+            throw new NullPointerException("Cannot push null element");
+        }
+        list.add(toAdd);
+    }
+
+    @Override
+    public E pop() throws EmptyStackException {
+        if (list.isEmpty()) {
+            throw new EmptyStackException("Cannot pop from empty stack");
+        }
+        return list.remove(list.size() - 1);
+    }
+
+    @Override
+    public E peek() throws EmptyStackException {
+        if (list.isEmpty()) {
+            throw new EmptyStackException("Cannot peek empty stack");
+        }
+        return list.get(list.size() - 1);
+    }
+
+    @Override
+    public void clear() {
+        list.clear();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return list.isEmpty();
+    }
+
+    @Override
+    public Object[] toArray() {
+        Object[] original = list.toArray();
+        Object[] reversed = new Object[original.length];
+        for (int i = 0; i < original.length; i++) {
+            reversed[i] = original[original.length - 1 - i];
+        }
+        return reversed;
+    }
+
+    @Override
+    public E[] toArray(E[] holder) throws NullPointerException {
+        if (holder == null) throw new NullPointerException("Holder array cannot be null");
+        
+        E[] temp = list.toArray(holder);
+        if (temp.length > size()) {
+            temp[size()] = null;
+        }
+        
+        // Reverse array to match stack order
+        for (int i = 0; i < temp.length / 2; i++) {
+            E swap = temp[i];
+            temp[i] = temp[temp.length - 1 - i];
+            temp[temp.length - 1 - i] = swap;
+        }
+        
+        return temp;
+    }
+
+    @Override
+    public boolean contains(E toFind) throws NullPointerException {
+        if (toFind == null) throw new NullPointerException("Cannot search for null");
+        return list.contains(toFind);
+    }
+
+    @Override
+    public int search(E toFind) {
+        if (toFind == null) throw new NullPointerException("Cannot search for null");
+        
+        int position = 1;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            if (toFind.equals(list.get(i))) {
+                return position;
+            }
+            position++;
+        }
+        return -1;
+    }
+
+    @Override
+    public Iterator<E> iterator() {
+        return new StackIterator();
+    }
+
+    private class StackIterator implements Iterator<E> {
+        private int currentIndex = list.size() - 1;
+
+        @Override
+        public boolean hasNext() {
+            return currentIndex >= 0;
+        }
+
+        @Override
+        public E next() throws NoSuchElementException {
+            if (!hasNext()) throw new NoSuchElementException();
+            return list.get(currentIndex--);
+        }
+    }
+
+    @Override
+    public boolean equals(StackADT<E> that) {
+        if (that == null) return false;
+        if (this.size() != that.size()) return false;
+
+        Iterator<E> thisIter = this.iterator();
+        Iterator<E> thatIter = that.iterator();
+
+        while (thisIter.hasNext()) {
+            if (!thisIter.next().equals(thatIter.next())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public int size() {
+        return list.size();
+    }
+
+    @Override
+    public boolean stackOverflow() {
+        return false; // MyArrayList is dynamically sized
+    }
+}

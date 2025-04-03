@@ -1,0 +1,139 @@
+package appDomain;
+
+import implementations.MyStack;
+import implementations.MyQueue;
+import exceptions.EmptyStackException;
+import exceptions.EmptyQueueException;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class XMLParser {
+    
+    // This regex captures:
+    //   group(1): an optional '/' indicating a closing tag.
+    //   group(2): the tag name (ignoring attributes).
+    //   group(3): any attributes (ignored here).
+    //   group(4): an optional '/' indicating a self-closing tag.
+    private static final Pattern TAG_PATTERN = Pattern.compile(
+        "<\\s*(/)?\\s*([^\\s>/]+)([^>]*)?(\\/)?\\s*>"
+    );
+
+    public static void main(String[] args) {
+        if (args.length == 0) {
+            System.out.println("Usage: java XMLParser <filename.xml>");
+            return;
+        }
+
+        MyStack<String> tagStack = new MyStack<>();
+        MyQueue<String> errorQueue = new MyQueue<>();
+        MyQueue<String> extrasQueue = new MyQueue<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+            String line;
+            int lineNumber = 0;
+            while ((line = br.readLine()) != null) {
+                lineNumber++;
+                processLine(line, lineNumber, tagStack, errorQueue, extrasQueue);
+            }
+            // Any tags remaining in the stack are unclosed.
+            while (!tagStack.isEmpty()) {
+                errorQueue.enqueue("Line end: Unclosed tag <" + tagStack.pop() + ">");
+            }
+            processFinalErrors(errorQueue, extrasQueue);
+        } catch (IOException | EmptyStackException | EmptyQueueException e) {
+            System.err.println("Error: " + e.getMessage());
+        }
+    }
+
+    private static void processLine(String line, int lineNumber, MyStack<String> stack, 
+                                    MyQueue<String> errorQ, MyQueue<String> extrasQ) 
+            throws EmptyStackException, EmptyQueueException {
+        Matcher matcher = TAG_PATTERN.matcher(line);
+        while (matcher.find()) {
+            String closingSlash = matcher.group(1);     // "/" if closing tag
+            String tagName = matcher.group(2);            // tag name
+            // group(3) contains attributes (ignored)
+            String selfClosingSlash = matcher.group(4);   // "/" if self-closing
+            
+            // Ignore processing instructions
+            if (tagName.startsWith("?xml")) continue;
+            
+            // Ignore self-closing tags
+            if (selfClosingSlash != null && selfClosingSlash.equals("/")) {
+                continue;
+            }
+            
+            if (closingSlash != null && closingSlash.equals("/")) {
+                // Closing tag detected
+                handleClosingTag(tagName, lineNumber, stack, errorQ, extrasQ);
+            } else {
+                // Opening tag: push the tag name onto the stack
+                stack.push(tagName);
+            }
+        }
+    }
+
+    private static void handleClosingTag(String tag, int lineNumber, MyStack<String> stack,
+                                         MyQueue<String> errorQ, MyQueue<String> extrasQ)
+            throws EmptyStackException, EmptyQueueException {
+        if (stack.isEmpty()) {
+            extrasQ.enqueue("Line " + lineNumber + ": Extra closing tag </" + tag + ">");
+            return;
+        }
+        
+        // If the tag at the top of the stack matches, pop it.
+        if (stack.peek().equals(tag)) {
+            stack.pop();
+        } else {
+            // Mismatch: search the stack for a matching tag.
+            MyQueue<String> tempQueue = new MyQueue<>();
+            boolean found = false;
+            while (!stack.isEmpty()) {
+                String current = stack.pop();
+                tempQueue.enqueue(current);
+                if (current.equals(tag)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                // All tags popped before the matching one are unclosed.
+                while (!tempQueue.isEmpty()) {
+                    String unclosed = tempQueue.dequeue();
+                    if (!unclosed.equals(tag)) {
+                        errorQ.enqueue("Line " + lineNumber + ": Unclosed tag <" + unclosed + "> (expected </" + unclosed + ">)");
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                // No matching opening tag found; treat this as an extra closing tag.
+                extrasQ.enqueue("Line " + lineNumber + ": Extra closing tag </" + tag + ">");
+                // Reinsert the popped tags back into the stack in reverse order.
+                while (!tempQueue.isEmpty()) {
+                    stack.push(tempQueue.dequeue());
+                }
+            }
+        }
+    }
+
+    private static void processFinalErrors(MyQueue<String> errorQ, MyQueue<String> extrasQ)
+            throws EmptyQueueException {
+        System.out.println("\nXML Validation Report:");
+        if (errorQ.isEmpty() && extrasQ.isEmpty()) {
+            System.out.println("Document is well-formed!");
+            return;
+        }
+
+        System.out.println("Errors found:");
+        while (!errorQ.isEmpty()) {
+            System.out.println("[Error] " + errorQ.dequeue());
+        }
+        while (!extrasQ.isEmpty()) {
+            System.out.println("[Extra Tag] " + extrasQ.dequeue());
+        }
+    }
+}
